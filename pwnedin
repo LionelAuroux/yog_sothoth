@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+
+import sys
+import argparse
+import csv
+import time
+
+# fonctions
+from selenium import webdriver
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+
+# linkedin scrap
+from linkedin_scraper import Person, actions
+
+import requests
+
+
+def get_driver():
+    # pour l'init de selenium
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.chrome.options import Options
+    from webdriver_manager.chrome import ChromeDriverManager
+    from webdriver_manager.utils import ChromeType
+
+    d = DesiredCapabilities.CHROME
+    d['loggingPrefs'] = {'browser': 'ALL'}
+    opt = Options()
+    opt.headless = False#True
+    s = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+    driver = webdriver.Chrome(service=s, options=opt, desired_capabilities=d)
+    #
+    return driver
+
+
+drv = get_driver()
+
+email = "lionel.auroux@gmail.com"
+pwd = "&&m@Cc4vx7TussEhsKG!$a5qmmmZ"
+
+actions.login(drv, email, pwd)
+print(f"LOG IN")
+drv.get('https://www.linkedin.com/events/pariscyberweek20226810138072878084096/')
+element = WebDriverWait(drv, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "events-base__home-tab-content-grid--main")))
+drv.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+time.sleep(1)
+drv.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+time.sleep(1)
+drv.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+time.sleep(1)
+print(f"ON EVENT")
+item = drv.find_elements(By.CSS_SELECTOR, "section[id^=ember]")
+data_cookie = drv.get_cookies()
+ls = []
+for d in data_cookie:
+    ls.append(f"{d['name']}={d['value']}")
+cookie = "; ".join(ls)
+for it in item:
+    if 'Access Link' in it.text and 'Sign Up' in it.text:
+        subitem = it.find_element(By.CSS_SELECTOR, "div[data-urn]")
+        atr = subitem.get_attribute("data-urn")
+        idpost = atr.split(':')[-1]
+        print(f"ITEM  {subitem.tag_name} : {idpost}")
+        #r = requests.delete(f'https://www.linkedin.com/voyager/api/contentcreation/normShares/urn:li:ugcPost:{idpost}', headers={'Cookie': cookie})
+        URL = f'https://www.linkedin.com/voyager/api/contentcreation/normShares/urn:li:ugcPost:{idpost}'
+        # IN Javascript
+        script = f"""
+        const deleteMethod = {{
+         method: 'DELETE', // Method itself
+         headers: {{
+          'Content-type': 'application/json; charset=UTF-8' // Indicates the content 
+         }},
+         // No need to have body, because we don't send nothing to the server.
+        }}
+        // Make the HTTP Delete call using fetch api
+        fetch('{URL}', deleteMethod) 
+        .then(response => response.json())
+        .then(data => console.log('RES: ' + data)) // Manipulate the data retrieved back, if we want to do something with it
+        .catch(err => console.log('ERR: ' + err)) // Do something with the erro
+        """
+        drv.execute_script(script)
+
+for entry in drv.get_log('browser'):
+    print(f"LOG {entry}")
+
+#drv.close()

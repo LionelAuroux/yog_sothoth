@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+
+import time
+# fonctions
+from selenium import webdriver
+from selenium.webdriver.common.proxy import Proxy, ProxyType
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+
+def get_driver():
+    # pour l'init de selenium
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.chrome.options import Options
+    from webdriver_manager.chrome import ChromeDriverManager
+    from webdriver_manager.utils import ChromeType
+
+    p = 'localhost:5000'
+    #prx = Proxy()
+    #prx.p_type = ProxyType.MANUAL
+    #prx.http_pxy = p
+    #prx.ssl_pxy = p
+    d = DesiredCapabilities.CHROME
+    d['loggingPrefs'] = {'browser': 'ALL'}
+    d['proxy'] = {'httpProxy': p, 'ftpProxy': p, 'sslProxy': p, 'proxyType': 'MANUAL', 'acceptSslCerts': True}
+    opt = Options()
+    opt.headless = False#True
+    opt.add_argument('ignore-certificate-errors')
+    s = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+    driver = webdriver.Chrome(service=s, options=opt, desired_capabilities=d)
+    #
+    return driver
+
+
+import subprocess as sp
+
+ex = sp.Popen(["mitmweb", "--listen-port", "5000"])
+time.sleep(5)
+drv = get_driver()
+try:
+    ex.communicate()
+except Exception as e:
+    print(f"EXC {e}")
+drv.close()
+ex.kill()
